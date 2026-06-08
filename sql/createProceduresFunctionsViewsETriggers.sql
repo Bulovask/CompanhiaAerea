@@ -172,3 +172,23 @@ begin
 end $$
 
 delimiter ;
+
+
+
+
+-- Adicionar mais procedimentos, funções, views e triggers conforme necessário para atender a requisitos adicionais do sistema de companhia aérea.
+
+delimiter $$
+create procedure sp_cadastrar_voo(
+    v_numero varchar(10),
+    v_origem char(3),
+    v_destino char(3),
+    v_partida datetime,
+    v_chegada datetime,
+    v_modelo varchar(50)
+)
+begin
+    insert into Voo(numero_voo, origem, destino, partida_prevista, chegada_prevista, aeronave_modelo)
+    values(v_numero, v_origem, v_destino, v_partida, v_chegada, v_modelo);
+end $$
+delimiter ;

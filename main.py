@@ -1,5 +1,7 @@
 import mysql.connector
 from mysql.connector import Error
+import random
+import string
 
 # ==========================================
 # Configuração de Conexão
@@ -67,7 +69,7 @@ def criar_reserva(conn):
     except Error as e:
         print(f"\n[!] Erro ao criar reserva: {e}")
     finally:
-        if cursor: cursor.close()
+        if cursor: cursor.close() # type: ignore
 
 def buscar_voos(conn):
     print("\n--- Buscar Voos Disponíveis ---")
@@ -91,7 +93,7 @@ def buscar_voos(conn):
     except Error as e:
         print(f"\n[!] Erro ao buscar voos: {e}")
     finally:
-        if cursor: cursor.close()
+        if cursor: cursor.close() # type: ignore
 
 def listar_reservas_completas(conn):
     print("\n--- Visão Geral de Reservas ---")
@@ -110,7 +112,7 @@ def listar_reservas_completas(conn):
     except Error as e:
         print(f"\n[!] Erro ao listar reservas: {e}")
     finally:
-        if cursor: cursor.close()
+        if cursor: cursor.close() # type: ignore
 
 def confirmar_pagamento(conn):
     print("\n--- Confirmar Pagamento de Reserva ---")
@@ -123,7 +125,7 @@ def confirmar_pagamento(conn):
     except Error as e:
         print(f"\n[!] Erro ao confirmar pagamento: {e}")
     finally:
-        if cursor: cursor.close()
+        if cursor: cursor.close() # type: ignore
 
 def cancelar_reserva(conn):
     print("\n--- Cancelar Reserva ---")
@@ -136,11 +138,84 @@ def cancelar_reserva(conn):
     except Error as e:
         print(f"\n[!] Erro ao cancelar reserva: {e}")
     finally:
-        if cursor: cursor.close()
+        if cursor: cursor.close() # type: ignore
+
+def cadastrar_voo(conn):
+    print("\n--- Cadastrar Novo Voo ---")
+    numero = input("Número do Voo (ex: G31920): ")
+    origem = input("Origem (3 letras, ex: GRU): ").upper()
+    destino = input("Destino (3 letras, ex: JFK): ").upper()
+    print("Use o formato YYYY-MM-DD HH:MM:SS para as datas.")
+    partida = input("Partida Prevista: ")
+    chegada = input("Chegada Prevista: ")
+    modelo = input("Modelo da Aeronave (ex: Boeing 737): ")
+
+    try:
+        cursor = conn.cursor()
+        # Chama a procedure que acabamos de criar no banco
+        cursor.callproc('sp_cadastrar_voo', (numero, origem, destino, partida, chegada, modelo))
+        conn.commit()
+        print(f"\n[+] Voo {numero} cadastrado com sucesso!")
+    except Error as e:
+        # Aqui o trigger trg_validar_datas_voo fará efeito se a data for inválida
+        print(f"\n[!] Erro ao cadastrar voo: {e}")
+    finally:
+        if cursor: cursor.close() # type: ignore
+
+def emitir_bilhete(conn):
+    print("\n--- Emitir Bilhete ---")
+    id_reserva = input("ID da Reserva: ")
+    id_voo = input("ID do Voo: ")
+    id_passageiro = input("ID do Passageiro: ")
+    
+    # Gera um número de bilhete aleatório (ex: TK-A1B2C3D4)
+    sufixo = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    numero_bilhete = f"TK-{sufixo}"
+    print(f"[*] Número do Bilhete gerado automaticamente: {numero_bilhete}")
+    
+    assento = input("Assento (ex: 12A): ").upper()
+    
+    print("Classes disponíveis: 1 - Economica | 2 - Executiva | 3 - Primeira Classe")
+    op_classe = input("Escolha a Classe (1/2/3): ")
+    if op_classe == '2': 
+        classe = 'Executiva'
+    elif op_classe == '3': 
+        classe = 'Primeira Classe'
+    else: 
+        classe = 'Economica'
+        
+    preco = input("Preço Pago (ex: 1500.50): ")
+
+    try:
+        cursor = conn.cursor()
+        # sp_emitir_bilhete exige: id_reserva, id_voo, id_passageiro, numero_bilhete, assento, classe, preco
+        cursor.callproc('sp_emitir_bilhete', (
+            int(id_reserva), 
+            int(id_voo), 
+            int(id_passageiro), 
+            numero_bilhete, 
+            assento, 
+            classe, 
+            float(preco)
+        ))
+        conn.commit()
+        print(f"\n[+] Sucesso! Bilhete emitido para o assento {assento} na classe {classe}.")
+    except ValueError:
+         print("\n[!] Erro: IDs e Preço devem ser valores numéricos válidos.")
+    except Error as e:
+        # A MÁGICA ACONTECE AQUI: 
+        # Se o preço for <= 0 ou o assento já estiver ocupado, o MySQL aborta a transação,
+        # envia o erro 45000 configurado nos seus Triggers/Procedures, e o Python imprime aqui:
+        print(f"\n[!] Falha na emissão (Regra de Negócio): {e}")
+    finally:
+        if cursor: cursor.close() # type: ignore
+
 
 # ==========================================
 # Menu Principal CLI
 # ==========================================
+
+
 def main():
     conn = conectar_banco()
     if not conn:
@@ -148,34 +223,31 @@ def main():
 
     while True:
         print("\n" + "="*40)
-        print(" SISTEMA COMPANHIA AÉREA ")
+        print(" SISTEMA COMPANHIA AÉREA BULOVASK ")
         print("="*40)
         print("1. Cadastrar Cliente")
         print("2. Cadastrar Passageiro")
-        print("3. Buscar Voos")
-        print("4. Criar Reserva (Pendente)")
-        print("5. Confirmar Pagamento de Reserva (Update)")
-        print("6. Cancelar Reserva (Update)")
-        print("7. Ver Reservas Detalhadas (View)")
+        print("3. Cadastrar Voo (Novo)")
+        print("4. Buscar Voos")
+        print("5. Criar Reserva (Pendente)")
+        print("6. Confirmar Pagamento de Reserva")
+        print("7. Emitir Bilhete / Marcar Assento (Novo)")
+        print("8. Ver Reservas Detalhadas")
+        print("9. Cancelar Reserva")
         print("0. Sair")
         print("="*40)
         
         opcao = input("Escolha uma opção: ")
         
-        if opcao == '1':
-            cadastrar_cliente(conn)
-        elif opcao == '2':
-            cadastrar_passageiro(conn)
-        elif opcao == '3':
-            buscar_voos(conn)
-        elif opcao == '4':
-            criar_reserva(conn)
-        elif opcao == '5':
-            confirmar_pagamento(conn)
-        elif opcao == '6':
-            cancelar_reserva(conn)
-        elif opcao == '7':
-            listar_reservas_completas(conn)
+        if opcao == '1': cadastrar_cliente(conn)
+        elif opcao == '2': cadastrar_passageiro(conn)
+        elif opcao == '3': cadastrar_voo(conn)
+        elif opcao == '4': buscar_voos(conn)
+        elif opcao == '5': criar_reserva(conn)
+        elif opcao == '6': confirmar_pagamento(conn)
+        elif opcao == '7': emitir_bilhete(conn)
+        elif opcao == '8': listar_reservas_completas(conn)
+        elif opcao == '9': cancelar_reserva(conn)
         elif opcao == '0':
             print("\nEncerrando o sistema. Até logo!")
             break
