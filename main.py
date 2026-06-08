@@ -1,6 +1,5 @@
 import mysql.connector
 from mysql.connector import Error
-import datetime
 
 # ==========================================
 # Configuração de Conexão
@@ -20,7 +19,7 @@ def conectar_banco():
         return None
 
 # ==========================================
-# Funções de Interação (Procedures e Views)
+# Funções de Interação (CRUD / Procedures)
 # ==========================================
 def cadastrar_cliente(conn):
     print("\n--- Cadastrar Novo Cliente ---")
@@ -64,11 +63,11 @@ def criar_reserva(conn):
         cursor = conn.cursor()
         cursor.callproc('sp_criar_reserva', (id_cliente, codigo_reserva))
         conn.commit()
-        print("\n[+] Reserva criada com sucesso! (Status Pendente)")
+        print("\n[+] Reserva criada com sucesso! (Status: Pendente)")
     except Error as e:
         print(f"\n[!] Erro ao criar reserva: {e}")
     finally:
-        if cursor: cursor.close() # type: ignore
+        if cursor: cursor.close()
 
 def buscar_voos(conn):
     print("\n--- Buscar Voos Disponíveis ---")
@@ -92,27 +91,52 @@ def buscar_voos(conn):
     except Error as e:
         print(f"\n[!] Erro ao buscar voos: {e}")
     finally:
-        if cursor: cursor.close() # type: ignore
+        if cursor: cursor.close()
 
 def listar_reservas_completas(conn):
     print("\n--- Visão Geral de Reservas ---")
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT codigo_reserva, cliente, passageiro, numero_voo, status_pagamento FROM vw_reservas_completas")
+        cursor.execute("SELECT id_reserva, codigo_reserva, cliente, passageiro, numero_voo, status_pagamento FROM vw_reservas_completas")
         reservas = cursor.fetchall()
         
         if not reservas:
-            print("Nenhuma reserva encontrada.")
+            print("Nenhuma reserva ativa com bilhete emitido encontrada.")
         else:
-            print(f"{'CÓDIGO':<10} | {'CLIENTE':<20} | {'PASSAGEIRO':<20} | {'VOO':<10} | {'STATUS':<15}")
-            print("-" * 85)
+            print(f"{'ID':<4} | {'CÓDIGO':<10} | {'CLIENTE':<20} | {'VOO':<10} | {'STATUS':<15}")
+            print("-" * 65)
             for r in reservas:
-                print(f"{r[0]:<10} | {r[1][:20]:<20} | {r[2][:20]:<20} | {r[3]:<10} | {r[4]:<15}")
+                print(f"{r[0]:<4} | {r[1]:<10} | {r[2][:20]:<20} | {r[4]:<10} | {r[5]:<15}")
     except Error as e:
         print(f"\n[!] Erro ao listar reservas: {e}")
     finally:
-        if cursor: cursor.close() # type: ignore
+        if cursor: cursor.close()
 
+def confirmar_pagamento(conn):
+    print("\n--- Confirmar Pagamento de Reserva ---")
+    id_reserva = input("ID da Reserva: ")
+    try:
+        cursor = conn.cursor()
+        cursor.callproc('sp_confirmar_pagamento', (id_reserva,))
+        conn.commit()
+        print(f"\n[+] Pagamento da reserva ID {id_reserva} confirmado com sucesso!")
+    except Error as e:
+        print(f"\n[!] Erro ao confirmar pagamento: {e}")
+    finally:
+        if cursor: cursor.close()
+
+def cancelar_reserva(conn):
+    print("\n--- Cancelar Reserva ---")
+    id_reserva = input("ID da Reserva: ")
+    try:
+        cursor = conn.cursor()
+        cursor.callproc('sp_cancelar_reserva', (id_reserva,))
+        conn.commit()
+        print(f"\n[-] Reserva ID {id_reserva} alterada para 'Cancelado'.")
+    except Error as e:
+        print(f"\n[!] Erro ao cancelar reserva: {e}")
+    finally:
+        if cursor: cursor.close()
 
 # ==========================================
 # Menu Principal CLI
@@ -124,13 +148,15 @@ def main():
 
     while True:
         print("\n" + "="*40)
-        print(" SISTEMA COMPANHIA AÉREA BULOVASK ")
+        print(" SISTEMA COMPANHIA AÉREA ")
         print("="*40)
         print("1. Cadastrar Cliente")
         print("2. Cadastrar Passageiro")
         print("3. Buscar Voos")
-        print("4. Criar Reserva")
-        print("5. Ver Reservas Completas (View)")
+        print("4. Criar Reserva (Pendente)")
+        print("5. Confirmar Pagamento de Reserva (Update)")
+        print("6. Cancelar Reserva (Update)")
+        print("7. Ver Reservas Detalhadas (View)")
         print("0. Sair")
         print("="*40)
         
@@ -145,6 +171,10 @@ def main():
         elif opcao == '4':
             criar_reserva(conn)
         elif opcao == '5':
+            confirmar_pagamento(conn)
+        elif opcao == '6':
+            cancelar_reserva(conn)
+        elif opcao == '7':
             listar_reservas_completas(conn)
         elif opcao == '0':
             print("\nEncerrando o sistema. Até logo!")
