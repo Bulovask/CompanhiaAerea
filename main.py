@@ -95,6 +95,32 @@ def buscar_voos(conn):
     finally:
         if cursor: cursor.close() # type: ignore
 
+def listar_voos_futuros(conn):
+    print("\n--- Painel de Voos Futuros (View) ---")
+    try:
+        cursor = conn.cursor()
+        # Consultando a View vw_voos_futuros que filtra automaticamente datas maiores que NOW()
+        cursor.execute("SELECT id_voo, numero_voo, origem, destino, partida_prevista, chegada_prevista, aeronave_modelo FROM vw_voos_futuros")
+        voos = cursor.fetchall()
+        
+        if not voos:
+            print("[-] Nenhum voo futuro agendado no momento.")
+        else:
+            # Cabeçalho formatado para alinhamento no terminal
+            print(f"{'ID':<4} | {'Nº VOO':<8} | {'ORIGEM':<6} | {'DESTINO':<7} | {'PARTIDA':<19} | {'CHEGADA':<19} | {'AERONAVE':<15}")
+            print("-" * 92)
+            for v in voos:
+                # Tratamento para exibir a data formatada caso o connector retorne objetos datetime
+                partida = v[4].strftime('%Y-%m-%d %H:%M:%S') if hasattr(v[4], 'strftime') else v[4]
+                chegada = v[5].strftime('%Y-%m-%d %H:%M:%S') if hasattr(v[5], 'strftime') else v[5]
+                
+                print(f"{v[0]:<4} | {v[1]:<8} | {v[2]:<6} | {v[3]:<7} | {partida:<19} | {chegada:<19} | {v[6]:<15}")
+    except Error as e:
+        print(f"\n[!] Erro ao listar voos futuros: {e}")
+    finally:
+        if cursor:  # type: ignore
+            cursor.close() # type: ignore
+
 def listar_reservas_completas(conn):
     print("\n--- Visão Geral de Reservas ---")
     try:
@@ -229,11 +255,12 @@ def main():
         print("2. Cadastrar Passageiro")
         print("3. Cadastrar Voo (Novo)")
         print("4. Buscar Voos")
-        print("5. Criar Reserva (Pendente)")
-        print("6. Confirmar Pagamento de Reserva")
-        print("7. Emitir Bilhete / Marcar Assento (Novo)")
-        print("8. Ver Reservas Detalhadas")
-        print("9. Cancelar Reserva")
+        print("5. Listar Voos Futuros")
+        print("6. Criar Reserva (Pendente)")
+        print("7. Confirmar Pagamento de Reserva")
+        print("8. Emitir Bilhete / Marcar Assento (Novo)")
+        print("9. Ver Reservas Detalhadas")
+        print("10. Cancelar Reserva")
         print("0. Sair")
         print("="*40)
         
@@ -243,11 +270,12 @@ def main():
         elif opcao == '2': cadastrar_passageiro(conn)
         elif opcao == '3': cadastrar_voo(conn)
         elif opcao == '4': buscar_voos(conn)
-        elif opcao == '5': criar_reserva(conn)
-        elif opcao == '6': confirmar_pagamento(conn)
-        elif opcao == '7': emitir_bilhete(conn)
-        elif opcao == '8': listar_reservas_completas(conn)
-        elif opcao == '9': cancelar_reserva(conn)
+        elif opcao == '5': listar_voos_futuros(conn)
+        elif opcao == '6': criar_reserva(conn)
+        elif opcao == '7': confirmar_pagamento(conn)
+        elif opcao == '8': emitir_bilhete(conn)
+        elif opcao == '9': listar_reservas_completas(conn)
+        elif opcao == '10': cancelar_reserva(conn)
         elif opcao == '0':
             print("\nEncerrando o sistema. Até logo!")
             break
